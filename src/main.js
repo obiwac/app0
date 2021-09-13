@@ -6,3 +6,8 @@ Vue.config.productionTip = false
 new Vue({
   render: h => h(App),
 }).$mount('#app')
+
+
+// function brrr() {
+//   console.log(vm);
+// }
