@@ -39,6 +39,7 @@
     </div>
     <div class="cols">
       <button v-on:click="resolve">Resolve</button>
+      <button v-on:click="simulate">Simulate</button>
       <select name="map" id="map" v-on:change="chooseMap">
         <option value="clear">Vide</option>
         <option value="map1">Map 1</option>
@@ -311,7 +312,7 @@ export default {
       // destroy_dark_force()
       // END OF THE CODE
     // },
-    async resolve() {
+    async simulate() {
       // define a bunch of stuff locally for the call to 'eval' later on
       // we need to shut the linter up temporarily though
       
@@ -404,6 +405,73 @@ export default {
 
       console.log(js_src)
       eval("(async() => {" + js_src + "})()") // a bit hacky but eh
+    },
+    async resolve() {
+      if (this.potterPos == undefined || this.evilPos == undefined) return
+      // do a BFS
+      let visited = Array(12).fill(null).map(() => {return Array(16).fill(false)})  // Array(12).fill(Array(16).fill(false))
+      let pathTo = Array(12).fill(null).map(() => {return Array(16).fill(undefined)}) // Array(12).fill(Array(16).fill(undefined))
+      let queue = []
+      queue.push({
+        x : this.get_x(),
+        y : this.get_y()
+      })
+      while (queue.length > 0) {
+        let c = queue.shift()
+        if (c.x == this.get_target_x() && c.y == this.get_target_y()) break; // evil found
+        for (const direction in this.mouvementDirection) {
+          let mouv = this.mouvementDirection[direction]
+          let newX = mouv.x + c.x
+          let newY = mouv.y + c.y
+          if (!(newX < 0 || newX > 11 || newY < 0 || newY > 15) && (this.board[newX][newY] == 'blank' || this.board[newX][newY] == 'evil') && !visited[newX][newY]) {
+            queue.push({
+              x : newX,
+              y : newY
+            })
+            visited[newX][newY] = true
+            pathTo[newX][newY] = c
+          }
+        }
+      }
+      // remake the path
+      let path = []
+      let c = {
+        x : this.get_target_x(),
+        y : this.get_target_y()
+      }
+      while (pathTo[c.x][c.y] != undefined) {
+        path.unshift(c)
+        c = pathTo[c.x][c.y]
+      }
+      // move potter to the dark force
+      for (let index = 0; index < path.length; index++) {
+        const newCoord = path[index];
+        // Update the direction
+        let delta = {
+          x : newCoord.x - this.get_x(),
+          y : newCoord.y - this.get_y()
+        }
+        if (delta.x == this.get_mouvementDirection().x && delta.y == this.get_mouvementDirection().y)
+          console.log("same pos");
+        else if (Math.abs(delta.x) == Math.abs(this.get_mouvementDirection().x) && Math.abs(delta.y) == Math.abs(this.get_mouvementDirection().y)) {
+          // 180 turn
+          this.turn_right()
+          await this.sleep(500)
+          this.turn_right()
+          await this.sleep(500)
+        } else {
+          // David Goodenough
+          while (delta.x != this.get_mouvementDirection().x || delta.y != this.get_mouvementDirection().y) {
+            this.turn_right()
+          }
+          await this.sleep(500)
+        }
+        
+        this.setOnBoard(this.get_x(), this.get_y(), 'blank')
+        this.setOnBoard(newCoord.x, newCoord.y, 'potter')
+        await this.sleep(500)
+      }
+      this.destroy_dark_force()
     },
     // tools for building map
     setOnBoard(x, y, value) {
