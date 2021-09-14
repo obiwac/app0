@@ -67,6 +67,7 @@ export default {
   },
   data() {
     return {
+      timeout_ms : 500,
       board : [],
       potterPos : undefined,
       evilPos : undefined,
@@ -311,140 +312,98 @@ export default {
       // END OF THE CODE
     // },
     async resolve() {
+      // define a bunch of stuff locally for the call to 'eval' later on
+      // we need to shut the linter up temporarily though
+      
+      /* eslint-disable no-unused-vars */
 
-let python_source = document.getElementByID("src-input").value
-console.log(python_source)
+      let sleep = this.sleep
+      let timeout_ms = this.timeout_ms
 
-// translate python source to javashit
+      let move = this.move
+      let turn_left = this.turn_left
+      let turn_right = this.turn_right
 
-let lines = python_source.split("\n")
-let js_src = ""
+      let can_move = this.can_move
+      let is_on_target = this.is_on_target
+      let get_direction = this.get_direction
+      let get_x = this.get_x
+      let get_y = this.get_y
+      let get_target_x = this.get_target_x
+      let get_target_y = this.get_target_y
+      let destroy_dark_force = this.destroy_dark_force
 
-let prev_tabcount = 0;
+      /* eslint-enable no-unused-vars */
 
-function translate_line(line) {
-	let tabcount = 0
+      // translate python source to javashit
 
-	for (let chr of line) {
-		if (chr == '\t') tabcount++
-		else break
-	}
+      let python_source = document.getElementById("src-input").value
 
-	line = line.substring(tabcount, line.length)
+      let lines = python_source.split("\n")
+      let js_src = ""
 
-	if (line == "") {
-		return
-	}
+      let prev_tabcount = 0;
 
-	if (tabcount < prev_tabcount) {
-		js_src += '}'.repeat(prev_tabcount - tabcount)
-	}
+      function translate_line(line) {
+        let tabcount = 0
 
-	prev_tabcount = tabcount
-
-	const VALID_STATEMENTS = [ "while", "if" ]
-	let is_statement = false
-
-	for (let statement of VALID_STATEMENTS) {
-		if (line.search(statement) >= 0) {
-			is_statement = true
-
-			const DICTIONARY = { "and": "&&", "or": "||", "not": '!', "EAST": '"east"', "WEST": '"west"', "NORTH": '"north"', "SOUTH": '"south"' }
-			let expression = [...line.replace(':', "").split(' ')].map(token => DICTIONARY[token] || token)
-
-			expression.splice(0, 1)
-			expression = expression.join(' ')
-	
-			js_src += statement + '(' + expression + "){"
-		}
-	}
-
-	if (!is_statement) {
-		js_src += line
-		
-		if (js_src.length && js_src[js_src.length - 1]) {
-			js_src += ';'
-		}
-	}
-}
-
-for (let line of lines) {
-	translate_line(line)
-}
-
-js_src += '}'.repeat(prev_tabcount) // in case we don't end the python source by a newline...
-
-console.log(js_src)
-eval(js_src)
-
-return; // all that follows this is legacy
-
-      if (this.potterPos == undefined || this.evilPos == undefined) return
-      // do a BFS
-      let visited = Array(12).fill(null).map(() => {return Array(16).fill(false)})  // Array(12).fill(Array(16).fill(false))
-      let pathTo = Array(12).fill(null).map(() => {return Array(16).fill(undefined)}) // Array(12).fill(Array(16).fill(undefined))
-      let queue = []
-      queue.push({
-        x : this.get_x(),
-        y : this.get_y()
-      })
-
-      while (queue.length > 0) {
-        let c = queue.shift()
-        if (c.x == this.get_target_x() && c.y == this.get_target_y()) break; // evil found
-        for (const direction in this.mouvementDirection) {
-          let mouv = this.mouvementDirection[direction]
-          let newX = mouv.x + c.x
-          let newY = mouv.y + c.y
-          if (!(newX < 0 || newX > 11 || newY < 0 || newY > 15) && (this.board[newX][newY] == 'blank' || this.board[newX][newY] == 'evil') && !visited[newX][newY]) {
-            queue.push({
-              x : newX,
-              y : newY
-            })
-            visited[newX][newY] = true
-            pathTo[newX][newY] = c
-          }
+        for (let chr of line) {
+          if (chr == '\t') tabcount++
+          else break
         }
-      }
-      // remake the path
-      let path = []
-      let c = {
-        x : this.get_target_x(),
-        y : this.get_target_y()
-      }
-      while (pathTo[c.x][c.y] != undefined) {
-        path.unshift(c)
-        c = pathTo[c.x][c.y]
-      }
-      // move potter to the dark force
-      for (let index = 0; index < path.length; index++) {
-        const newCoord = path[index];
-        // Update the direction
-        let delta = {
-          x : newCoord.x - this.get_x(),
-          y : newCoord.y - this.get_y()
+
+        line = line.substring(tabcount, line.length)
+
+        if (line == "") {
+          return
         }
-        if (delta.x == this.get_mouvementDirection().x && delta.y == this.get_mouvementDirection().y)
-          console.log("same pos");
-        else if (Math.abs(delta.x) == Math.abs(this.get_mouvementDirection().x) && Math.abs(delta.y) == Math.abs(this.get_mouvementDirection().y)) {
-          // 180 turn
-          this.turn_right()
-          await this.sleep(500)
-          this.turn_right()
-          await this.sleep(500)
-        } else {
-          // David Goodenough
-          while (delta.x != this.get_mouvementDirection().x || delta.y != this.get_mouvementDirection().y) {
-            this.turn_right()
-          }
-          await this.sleep(500)
+
+        if (tabcount < prev_tabcount) {
+          js_src += '}'.repeat(prev_tabcount - tabcount)
         }
+
+        prev_tabcount = tabcount
+
+        const VALID_STATEMENTS = [ "while", "if" ]
+        let is_statement = false
+
+        for (let statement of VALID_STATEMENTS) {
+          if (line.search(statement) >= 0) {
+            is_statement = true
+
+            const DICTIONARY = { "elif": "else if", "and": "&&", "or": "||", "not": '!', "EAST": '"east"', "WEST": '"west"', "NORTH": '"north"', "SOUTH": '"south"' }
+            let expression = line.replace(':', "").split(' ').map(token => DICTIONARY[token] || token)
+
+            expression.splice(0, 1)
+            expression = expression.join(' ')
         
-        this.setOnBoard(this.get_x(), this.get_y(), 'blank')
-        this.setOnBoard(newCoord.x, newCoord.y, 'potter')
-        await this.sleep(500)
+            js_src += statement + '(' + expression + "){"
+          }
+        }
+
+        if (!is_statement) {
+          js_src += line
+          
+          if (js_src.length && js_src[js_src.length - 1]) {
+            js_src += ';'
+          }
+        }
       }
-      this.destroy_dark_force()
+
+      for (let line of lines) {
+        translate_line(line)
+      }
+
+      js_src += '}'.repeat(prev_tabcount) // in case we don't end the python source by a newline...
+
+      js_src = js_src.replace("can_move()", "lmfao()")
+      js_src = js_src.replace("move()", "move();await sleep(timeout_ms)")
+      js_src = js_src.replace("turn_left()", "turn_left();await sleep(timeout_ms)")
+      js_src = js_src.replace("turn_right()", "turn_right();await sleep(timeout_ms)")
+      js_src = js_src.replace("lmfao()", "can_move()")
+
+      console.log(js_src)
+      eval("(async() => {" + js_src + "})()") // a bit hacky but eh
     },
     // tools for building map
     setOnBoard(x, y, value) {
