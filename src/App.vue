@@ -50,6 +50,8 @@
         <option value="map7">Obstacle 4</option>
       </select>
     </div>
+    <textarea id="src-input" auto-grow>
+	</textarea>
   </div>
 </template>
 
@@ -309,6 +311,74 @@ export default {
       // END OF THE CODE
     // },
     async resolve() {
+
+let python_source = document.getElementByID("src-input").value
+console.log(python_source)
+
+// translate python source to javashit
+
+let lines = python_source.split("\n")
+let js_src = ""
+
+let prev_tabcount = 0;
+
+function translate_line(line) {
+	let tabcount = 0
+
+	for (let chr of line) {
+		if (chr == '\t') tabcount++
+		else break
+	}
+
+	line = line.substring(tabcount, line.length)
+
+	if (line == "") {
+		return
+	}
+
+	if (tabcount < prev_tabcount) {
+		js_src += '}'.repeat(prev_tabcount - tabcount)
+	}
+
+	prev_tabcount = tabcount
+
+	const VALID_STATEMENTS = [ "while", "if" ]
+	let is_statement = false
+
+	for (let statement of VALID_STATEMENTS) {
+		if (line.search(statement) >= 0) {
+			is_statement = true
+
+			const DICTIONARY = { "and": "&&", "or": "||", "not": '!', "EAST": '"east"', "WEST": '"west"', "NORTH": '"north"', "SOUTH": '"south"' }
+			let expression = [...line.replace(':', "").split(' ')].map(token => DICTIONARY[token] || token)
+
+			expression.splice(0, 1)
+			expression = expression.join(' ')
+	
+			js_src += statement + '(' + expression + "){"
+		}
+	}
+
+	if (!is_statement) {
+		js_src += line
+		
+		if (js_src.length && js_src[js_src.length - 1]) {
+			js_src += ';'
+		}
+	}
+}
+
+for (let line of lines) {
+	translate_line(line)
+}
+
+js_src += '}'.repeat(prev_tabcount) // in case we don't end the python source by a newline...
+
+console.log(js_src)
+eval(js_src)
+
+return; // all that follows this is legacy
+
       if (this.potterPos == undefined || this.evilPos == undefined) return
       // do a BFS
       let visited = Array(12).fill(null).map(() => {return Array(16).fill(false)})  // Array(12).fill(Array(16).fill(false))
