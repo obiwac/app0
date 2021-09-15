@@ -339,6 +339,7 @@ export default {
       // translate python source to javashit
 
       let python_source = document.getElementById("src-input").value
+      python_source = python_source.replace("    ", '\t')
 
       let lines = python_source.split("\n")
       let js_src = ""
